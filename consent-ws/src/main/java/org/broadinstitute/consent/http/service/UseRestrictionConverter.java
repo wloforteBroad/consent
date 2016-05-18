@@ -160,7 +160,7 @@ public class UseRestrictionConverter {
     }
 
     public Map<String, Object> parseAsMap(String str) {
-        ObjectReader reader = mapper.reader(Map.class);
+        ObjectReader reader = mapper.readerFor(Map.class);
         try {
             return reader.readValue(str);
         } catch (IOException e) {

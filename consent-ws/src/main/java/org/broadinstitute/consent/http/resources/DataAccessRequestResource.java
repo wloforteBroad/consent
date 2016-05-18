@@ -383,7 +383,7 @@ public class DataAccessRequestResource extends Resource {
     }
 
     private Map<String, Object> parseAsMap(String str) throws IOException {
-        ObjectReader reader = mapper.reader(Map.class);
+        ObjectReader reader = mapper.readerFor(Map.class);
         return reader.readValue(str);
     }
 

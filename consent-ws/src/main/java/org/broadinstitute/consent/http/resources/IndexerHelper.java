@@ -19,15 +19,21 @@ import java.util.stream.Collectors;
 
 public class IndexerHelper {
 
+
+    private static String METADATA = "metadata";
+    private static String TYPE = "type";
+    private static String PREFIX = "prefix";
+
+
     public List<StreamRec> filesCompBuilder(FormDataMultiPart formParams) throws IOException {
         List<StreamRec> fileRecList = new ArrayList<>();
         Map<String,InputStream> formParts =  formParams.getFields().entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0).getEntityAs(InputStream.class)));
         Map<String,FormDataBodyPart> contentDispositionList =  formParams.getFields().entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().get(0)));
-        InputStream metadataStream =  formParts.get("metadata");
+        InputStream metadataStream =  formParts.get(METADATA);
         if(metadataStream == null){
             throw new IOException("Expected parameter 'metadata' wasn't sent.");
         }
-        formParts.remove("metadata");
+        formParts.remove(METADATA);
         StringWriter writer = new StringWriter();
         IOUtils.copy(metadataStream, writer);
         Map<String, LinkedHashMap> metadataMap = parseAsMap( writer.toString());
@@ -37,20 +43,20 @@ public class IndexerHelper {
             }
             LinkedHashMap<String,String> m = metadataMap.get(entry.getKey());
             FormDataBodyPart bp = contentDispositionList.get(entry.getKey());
-            if(!m.containsKey("type") || !m.containsKey("prefix")){
+            if(!m.containsKey(TYPE) || !m.containsKey(PREFIX)){
                 throw new IOException("Metadata doesn't contain expected element 'type' or 'prefix'");
             }
-            if(!OntologyTypes.contains(m.get("type"))){
-                throw new IOException(m.get("type")+" is an invalid OntologyType.");
+            if(!OntologyTypes.contains(m.get(TYPE))){
+                throw new IOException(m.get(TYPE)+" is an invalid OntologyType.");
             }
-            fileRecList.add(new StreamRec(formParts.get(entry.getKey()), m.get("type"),m.get("prefix"),bp.getMediaType().toString(),bp.getContentDisposition().getFileName()));
+            fileRecList.add(new StreamRec(formParts.get(entry.getKey()), m.get(TYPE),m.get(PREFIX),bp.getMediaType().toString(),bp.getContentDisposition().getFileName()));
         }
     return fileRecList;
     }
 
     private Map<String, LinkedHashMap> parseAsMap(String str) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
-        ObjectReader reader = mapper.reader(Map.class);
+        ObjectReader reader = mapper.readerFor(Map.class);
         return reader.readValue(str);
     }
 }

@@ -1,13 +1,22 @@
 package org.broadinstitute.consent.http;
 
+import com.google.api.client.http.HttpTransport;
+import com.google.api.client.http.LowLevelHttpRequest;
+import com.google.api.client.http.LowLevelHttpResponse;
+import com.google.api.client.testing.http.HttpTesting;
+import com.google.api.client.testing.http.MockHttpTransport;
+import com.google.api.client.testing.http.MockLowLevelHttpRequest;
+import com.google.api.client.testing.http.MockLowLevelHttpResponse;
+import com.google.common.io.Resources;
 import io.dropwizard.testing.junit.DropwizardAppRule;
+import org.broadinstitute.consent.http.cloudstore.GCSStore;
 import org.broadinstitute.consent.http.configurations.ConsentConfiguration;
+import org.broadinstitute.consent.http.models.validate.ValidateResponse;
 import org.broadinstitute.consent.http.service.DatabaseTranslateServiceAPI;
+import org.broadinstitute.consent.http.service.ontologyIndexer.StoreOntologyService;
+import org.broadinstitute.consent.http.service.validate.UseRestrictionValidator;
 import org.mockito.Mockito;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.Invocation;
@@ -15,8 +24,12 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
-import org.broadinstitute.consent.http.models.validate.ValidateResponse;
-import org.broadinstitute.consent.http.service.validate.UseRestrictionValidator;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -140,5 +153,34 @@ abstract public class AbstractTest extends ResourcedTest {
         Mockito.when(clientMock.target(Mockito.anyString())).thenReturn(webTargetMock);
         Mockito.when(webTargetMock.queryParam(Mockito.anyString(), Mockito.anyString())).thenReturn(webTargetMock);
         UseRestrictionValidator.getInstance().setClient(clientMock);
+    }
+
+    public static StoreOntologyService getStorageServiceMock() throws GeneralSecurityException, IOException {
+        final GCSStore storeMock = Mockito.mock(GCSStore.class);
+
+
+        URL urlDiseasesOntologyFile = Thread.currentThread().getContextClassLoader().getResource("diseases.owl");
+        HttpTransport DiseaseTransportMock = createInputStreamHttpTransportMock(urlDiseasesOntologyFile);
+        Mockito.when(storeMock.getStorageDocument("file1CloudURI")).thenReturn(DiseaseTransportMock.createRequestFactory().buildGetRequest(HttpTesting.SIMPLE_GENERIC_URL).execute());
+        return new StoreOntologyService(storeMock, "AnyString", "AnyString");
+
+
+    }
+
+    private static HttpTransport createInputStreamHttpTransportMock(URL resourcePath) {
+        HttpTransport diseaseTransportMock = new MockHttpTransport() {
+            @Override
+            public LowLevelHttpRequest buildRequest(String method, String url) throws IOException {
+                return new MockLowLevelHttpRequest() {
+                    @Override
+                    public LowLevelHttpResponse execute() throws IOException {
+                        MockLowLevelHttpResponse result = new MockLowLevelHttpResponse();
+                        result.setContent(Resources.asByteSource(resourcePath).openStream());
+                        return result;
+                    }
+                };
+            }
+        };
+        return diseaseTransportMock;
     }
 }

@@ -8,6 +8,7 @@ import org.broadinstitute.consent.http.models.dto.Error;
 import org.broadinstitute.consent.http.models.ontology.StreamRec;
 import org.broadinstitute.consent.http.service.ontologyIndexer.IndexerService;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
+import org.semanticweb.owlapi.model.OWLOntologyCreationException;
 
 import javax.annotation.security.PermitAll;
 import javax.annotation.security.RolesAllowed;
@@ -26,7 +27,7 @@ import java.util.List;
 public class IndexerResource {
 
     private final IndexerService indexerService;
-    private final IndexerHelper elasticSearchHelper = new IndexerHelper();
+    private final IndexerHelper indexerHelper = new IndexerHelper();
     private final GCSStore store;
 
     public IndexerResource(IndexerService indexerService, GCSStore store) {
@@ -40,12 +41,15 @@ public class IndexerResource {
     @RolesAllowed("ADMIN")
     public Response saveAndIndex( FormDataMultiPart formParams)   {
         try {
-            List<StreamRec> fileCompList =  elasticSearchHelper.filesCompBuilder(formParams);
+            List<StreamRec> fileCompList =  indexerHelper.filesCompBuilder(formParams);
             return indexerService.saveAndIndex(fileCompList);
         }catch (IOException | InternalServerErrorException e){
             return Response.serverError().entity(new Error(e.getMessage(), Response.Status.INTERNAL_SERVER_ERROR.getStatusCode())).build();
         }catch (BadRequestException e){
             return Response.status(Response.Status.BAD_REQUEST).entity(new Error(e.getMessage(), Response.Status.BAD_REQUEST.getStatusCode())).build();
+        } catch (OWLOntologyCreationException e) {
+            e.printStackTrace();
+            return Response.serverError().build();
         }
     }
 
